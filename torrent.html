@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torrent Unlocker - Web</title>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <style>
+        /* CSS: Gaya Visual */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 { color: #1a1a1a; font-size: 1.5rem; margin-bottom: 1rem; }
+        
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .upload-area:hover { border-color: #3b82f6; }
+
+        input[type="file"] { width: 100%; cursor: pointer; }
+
+        .status-box {
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        #file-list {
+            text-align: left;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .btn-download {
+            background: #2563eb;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .btn-download:hover { background: #1d4ed8; }
+
+        .progress-bar {
+            height: 5px;
+            width: 0%;
+            background: #10b981;
+            margin-top: 10px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Torrent Unlocker</h1>
+    
+    <div class="upload-area">
+        <p style="margin-top: 0; font-size: 0.9rem; color: #64748b;">Pilih fail .torrent anda</p>
+        <input type="file" id="torrentInput" accept=".torrent">
+    </div>
+
+    <div id="status" class="status-box">Menunggu fail...</div>
+    <div id="progress" class="progress-bar"></div>
+
+    <div id="file-list" style="display: none;">
+        <p style="font-weight: bold; margin-bottom: 10px;">Kandungan Fail:</p>
+        <div id="files-container"></div>
+    </div>
+</div>
+
+<script>
+    // JS: Logik Pemprosesan
+    const client = new WebTorrent();
+    const input = document.getElementById('torrentInput');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const fileListDiv = document.getElementById('file-list');
+    const filesContainer = document.getElementById('files-container');
+
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        status.innerText = "Membaca metadata...";
+        
+        // Tambah torrent ke client
+        client.add(file, (torrent) => {
+            status.innerText = `Menyambung ke seeders untuk: ${torrent.name}`;
+            fileListDiv.style.display = 'block';
+            filesContainer.innerHTML = ''; 
+
+            // Update progress setiap saat
+            torrent.on('download', () => {
+                const percent = Math.round(torrent.progress * 100);
+                progress.style.width = percent + '%';
+                status.innerText = `Muat turun: ${percent}% (Speed: ${(torrent.downloadSpeed / 1024 / 1024).toFixed(2)} MB/s)`;
+            });
+
+            torrent.files.forEach((f) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `<span>${f.name}</span> <span id="loading-${f.name.replace(/\s+/g, '')}">Memproses...</span>`;
+                filesContainer.appendChild(item);
+
+                // Tukar fail kepada link muat turun (Blob)
+                f.getBlobURL((err, url) => {
+                    if (err) return;
+                    const loadingSpan = document.getElementById(`loading-${f.name.replace(/\s+/g, '')}`);
+                    if (loadingSpan) {
+                        loadingSpan.outerHTML = `<a href="${url}" download="${f.name}" class="btn-download">Simpan</a>`;
+                    }
+                });
+            });
+
+            torrent.on('done', () => {
+                status.innerText = "Selesai! Anda boleh simpan fail sekarang.";
+                progress.style.width = '100%';
+            });
+        });
+    });
+
+    // Handle error
+    client.on('error', (err) => {
+        status.style.background = '#fef2f2';
+        status.style.color = '#991b1b';
+        status.innerText = "Error: " + err.message;
+    });
+</script>
+
+</body>
+</html>
